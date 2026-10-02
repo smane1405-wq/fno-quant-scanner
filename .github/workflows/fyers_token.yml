@@ -1,0 +1,42 @@
+name: Daily Fyers Auto Token Generator
+
+on:
+  schedule:
+    # भारतीय वेळेनुसार (IST) दररोज सकाळी ८:४५ वाजता (सोमवार ते शुक्रवार)
+    - cron: '15 3 * * 1-5'
+  workflow_dispatch: # टेस्टिंगसाठी मॅन्युअली रन करण्याचे बटण
+
+jobs:
+  generate-token:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Libraries
+        run: |
+          pip install requests pyotp fyers-apiv3
+
+      - name: Run Auto Login Script
+        env:
+          FYERS_ID: ${{ secrets.FYERS_ID }}
+          APP_ID: ${{ secrets.APP_ID }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          PIN: ${{ secrets.PIN }}
+          TOTP_KEY: ${{ secrets.TOTP_KEY }}
+        run: |
+          python auto_fyers_login.py
+
+      - name: Commit and Push Token File
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add access_token.txt
+          git commit -m "Auto Update: Daily Fyers Access Token [skip ci]" || exit 0
+          git push
