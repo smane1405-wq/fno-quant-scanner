@@ -3,7 +3,7 @@ import hashlib
 import os
 import sys
 import pyotp
-import requests
+import cloudscraper
 from urllib.parse import parse_qs, urlparse
 
 FYERS_ID = os.environ.get("FYERS_ID", "").strip()
@@ -15,22 +15,22 @@ TOTP_KEY = os.environ.get("TOTP_KEY", "").strip()
 REDIRECT_URI = "https://trade.fyers.in/api-login/redirect-uri/index.html"
 TOKEN_FILE = "access_token.txt"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Content-Type": "application/json; charset=UTF-8",
-    "Accept": "application/json"
-}
-
 def get_totp():
     return pyotp.TOTP(TOTP_KEY).now()
 
 def auto_generate_token():
     if not (FYERS_ID and APP_ID and SECRET_KEY and PIN and TOTP_KEY):
-        print("ERROR: One or more GitHub Secrets are missing or empty!")
+        print("ERROR: Missing secrets!")
         sys.exit(1)
 
-    session = requests.Session()
-    session.headers.update(HEADERS)
+    # Cloudflare WAF bypass session
+    scraper = cloudscraper.create_scraper(
+        browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        }
+    )
 
     # 1. Send Login OTP Request
     send_otp_url = "https://api-t1.fyers.in/api/v3/generate-authcode"
@@ -38,12 +38,11 @@ def auto_generate_token():
         "fy_id": base64.b64encode(FYERS_ID.encode()).decode(),
         "app_id": "2"
     }
-    r1 = session.post(send_otp_url, json=payload_1, timeout=10)
-    print("Step 1 Status:", r1.status_code)
+    r1 = scraper.post(send_otp_url, json=payload_1, timeout=15)
     try:
         res1 = r1.json()
     except Exception:
-        print("Step 1 Raw Response:", r1.text)
+        print("Step 1 Blocked by Cloudflare:", r1.text[:200])
         sys.exit(1)
 
     req_key = res1.get("request_key")
@@ -57,8 +56,7 @@ def auto_generate_token():
         "request_key": req_key,
         "otp": get_totp()
     }
-    r2 = session.post(verify_totp_url, json=payload_2, timeout=10)
-    print("Step 2 Status:", r2.status_code)
+    r2 = scraper.post(verify_totp_url, json=payload_2, timeout=15)
     res2 = r2.json()
     req_key_2 = res2.get("request_key")
     if not req_key_2:
@@ -72,8 +70,7 @@ def auto_generate_token():
         "identity_type": "pin",
         "identifier": base64.b64encode(PIN.encode()).decode()
     }
-    r3 = session.post(verify_pin_url, json=payload_3, timeout=10)
-    print("Step 3 Status:", r3.status_code)
+    r3 = scraper.post(verify_pin_url, json=payload_3, timeout=15)
     res3 = r3.json()
     auth_token = res3.get("data", {}).get("token")
     if not auth_token:
@@ -98,8 +95,7 @@ def auto_generate_token():
         "response_type": "code",
         "create_cookie": True
     }
-    r4 = session.post("https://api-t1.fyers.in/api/v3/token", headers=headers_token, json=token_payload, timeout=10)
-    print("Step 4 Status:", r4.status_code)
+    r4 = scraper.post("https://api-t1.fyers.in/api/v3/token", headers=headers_token, json=token_payload, timeout=15)
     res4 = r4.json()
     redirect_url = res4.get("Url")
     if not redirect_url:
@@ -108,9 +104,6 @@ def auto_generate_token():
 
     parsed_url = urlparse(redirect_url)
     auth_code = parse_qs(parsed_url.query).get("auth_code", [None])[0]
-    if not auth_code:
-        print("Could not parse auth_code from URL:", redirect_url)
-        sys.exit(1)
 
     # 5. Exchange Auth Code for Access Token
     validate_url = "https://api-t1.fyers.in/api/v3/validate-authcode"
@@ -121,8 +114,7 @@ def auto_generate_token():
         "appIdHash": app_id_hash,
         "code": auth_code
     }
-    r5 = requests.post(validate_url, json=validate_payload, headers=HEADERS, timeout=10)
-    print("Step 5 Status:", r5.status_code)
+    r5 = scraper.post(validate_url, json=validate_payload, timeout=15)
     res5 = r5.json()
     access_token = res5.get("access_token")
 
