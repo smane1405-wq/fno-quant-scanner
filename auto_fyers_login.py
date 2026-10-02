@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import os
 import pyotp
 import requests
@@ -81,7 +82,7 @@ def auto_generate_token():
 
     # 5. Exchange Auth Code for Access Token
     validate_url = "https://api-t1.fyers.in/api/v3/validate-authcode"
-    app_id_hash = base64.sha256((APP_ID + ":" + SECRET_KEY).encode()).hexdigest()
+    app_id_hash = hashlib.sha256((APP_ID + ":" + SECRET_KEY).encode()).hexdigest()
     
     validate_payload = {
         "grant_type": "authorization_code",
