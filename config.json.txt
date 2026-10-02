@@ -1,0 +1,5 @@
+{
+  "enable_tg": true,
+  "tg_bot_token": "8797418505:AAG4CAxXGnfKxWWAufk7FM5hrLwaP1Hqnf8",
+  "tg_chat_id": "-1004394893383"
+}
