@@ -2,9 +2,8 @@ name: Daily Fyers Auto Token Generator
 
 on:
   schedule:
-    # भारतीय वेळेनुसार (IST) दररोज सकाळी ८:४५ वाजता (सोमवार ते शुक्रवार)
     - cron: '15 3 * * 1-5'
-  workflow_dispatch: # टेस्टिंगसाठी मॅन्युअली रन करण्याचे बटण
+  workflow_dispatch:
 
 jobs:
   generate-token:
