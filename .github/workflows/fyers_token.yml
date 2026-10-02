@@ -20,7 +20,7 @@ jobs:
 
       - name: Install Libraries
         run: |
-          pip install requests pyotp fyers-apiv3
+          pip install requests pyotp fyers-apiv3 cloudscraper
 
       - name: Run Auto Login Script
         env:
